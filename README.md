@@ -47,29 +47,38 @@ API: `GET /api/devices`, `POST /api/scan`, `POST /api/devices/{id}/power|toggle|
 
 ## Docker (e.g. on a NAS)
 
-The image `wemo-local` bundles the built web UI and the server. Run it with **host networking** so WeMo discovery (SSDP multicast) can see your LAN; new devices then appear when you hit *Rescan network*, with no configuration. `WEMO_SCAN_SUBNETS` (e.g. `192.168.86.0/24`) additionally sweeps your LAN range over plain TCP, which finds devices even where multicast doesn't reach the container. `WEMO_HOSTS` is a last-resort list of specific device IPs.
+The image [`jonstuebe/wemo-local`](https://hub.docker.com/r/jonstuebe/wemo-local) (`linux/amd64` and `linux/arm64`) bundles the built web UI and the server. Run it with **host networking** so WeMo discovery (SSDP multicast) can see your LAN; new devices then appear when you hit *Rescan network*, with no configuration. `WEMO_SCAN_SUBNETS` (e.g. `192.168.86.0/24`) additionally sweeps your LAN range over plain TCP, which finds devices even where multicast doesn't reach the container. `WEMO_HOSTS` is a last-resort list of specific device IPs.
 
-On the NAS, from a copy of this folder:
-
-```sh
-docker compose up -d --build      # UI at http://<nas>:8765
-```
-
-Or build on your Mac and copy the image over (most NAS boxes are `linux/amd64`):
+On the NAS, with `compose.yaml` from this repo:
 
 ```sh
-docker buildx build --platform linux/amd64 -t wemo-local:latest --load .
-docker save wemo-local:latest | ssh <nas> docker load
+docker compose pull && docker compose up -d     # UI at http://<nas>:8765
 ```
 
-Then on the NAS, run `docker compose up -d` with `compose.yaml`, or:
+Or without compose:
 
 ```sh
-docker run -d --name wemo-local --restart unless-stopped --network host wemo-local:latest
+docker run -d --name wemo-local --restart unless-stopped --network host \
+  -e WEMO_SCAN_SUBNETS=192.168.86.0/24 jonstuebe/wemo-local:latest
 ```
+
+To build it yourself instead: `docker build -t jonstuebe/wemo-local:dev .`
 
 Through Tailscale, open `http://<nas-tailscale-name>:8765`. There is no login, so anyone on your tailnet (or LAN) can control the devices.
 
 Settings (environment variables): `WEMO_SCAN_SUBNETS` (comma-separated CIDR ranges to sweep), `WEMO_HOSTS` (comma-separated device IPs), `WEMO_PORT` (default 8765), `WEMO_BIND` (default `0.0.0.0` in the image).
 
 Testing on a Mac: Docker (OrbStack/Docker Desktop) needs the macOS *Local Network* permission to reach LAN devices; restart OrbStack and accept the prompt if needed. Multicast discovery can't cross into the Mac's Docker VM even with host networking, so set `WEMO_SCAN_SUBNETS` there. Neither limitation applies to a Linux NAS.
+
+## Releases
+
+Every push to `main` is released automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml), with the version worked out from [Conventional Commits](https://www.conventionalcommits.org) since the last `v*` tag:
+
+| Commits since last release | Next version (below 1.0) | Next version (1.0 and up) |
+| --- | --- | --- |
+| `fix:` / `perf:` | 0.1.0 → 0.1.1 | 1.2.3 → 1.2.4 |
+| `feat:` | 0.1.0 → 0.2.0 | 1.2.3 → 1.3.0 |
+| `feat!:` / `BREAKING CHANGE:` footer | 0.1.0 → 0.2.0 | 1.2.3 → 2.0.0 |
+| only `docs:` / `chore:` / `build:` / `ci:` / `test:` / `refactor:` | no release | no release |
+
+A release pushes `jonstuebe/wemo-local:X.Y.Z`, `:X.Y` and `:latest`, then creates the `vX.Y.Z` git tag and GitHub Release with notes from the commits. Pull requests build the image without publishing. The workflow needs a `DOCKERHUB_TOKEN` repository secret (a Docker Hub access token with Read & Write access). `GET /api/health` reports the running version.
