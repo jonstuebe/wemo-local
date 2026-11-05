@@ -1,0 +1,16 @@
+services:
+  wemo-local:
+    build: .
+    image: wemo-local:latest
+    container_name: wemo-local
+    restart: unless-stopped
+    # Host networking puts the container on your LAN directly, so WeMo
+    # discovery (SSDP multicast) finds devices automatically, new ones included.
+    network_mode: host
+    environment:
+      WEMO_PORT: "8765"
+      # Also sweep your LAN range for WeMo devices. Catches anything multicast
+      # discovery misses; new devices still show up on "Rescan network".
+      WEMO_SCAN_SUBNETS: "192.168.86.0/24"
+      # Last-resort fallback: specific device IPs, comma-separated.
+      # WEMO_HOSTS: "192.168.86.36"

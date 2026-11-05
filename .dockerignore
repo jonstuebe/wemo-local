@@ -1,0 +1,9 @@
+.git
+.venv
+**/__pycache__
+**/node_modules
+web/dist
+web/repos
+*.md
+!README.md
+.DS_Store
