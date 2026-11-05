@@ -30,6 +30,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     WEMO_BIND=0.0.0.0 \
     WEMO_PORT=8765
 
+# Set by CI to the release version; shown by /api/health.
+ARG VERSION=dev
+ENV WEMO_VERSION=$VERSION
+
 RUN useradd --system --no-create-home wemo
 USER wemo
 

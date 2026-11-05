@@ -195,7 +195,7 @@ app = FastAPI(title="WeMo")
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    return {"ok": True, "version": os.environ.get("WEMO_VERSION", "dev")}
 
 
 @app.get("/api/devices")
