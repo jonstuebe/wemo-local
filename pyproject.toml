@@ -1,0 +1,21 @@
+[project]
+name = "wemo"
+version = "0.1.0"
+description = "Local control of Belkin WeMo devices via pywemo"
+readme = "README.md"
+authors = [
+    { name = "Jon Stuebe", email = "jon@oneraven.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.162.0",
+    "pywemo>=2.1.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+wemo = "wemo:main"
+
+[build-system]
+requires = ["uv_build>=0.11.15,<0.12.0"]
+build-backend = "uv_build"
