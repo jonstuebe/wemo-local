@@ -1,7 +1,8 @@
 services:
   wemo-local:
-    build: .
-    image: wemo-local:latest
+    # Published from GitHub Actions on every release. Pin a version (e.g. 0.1.0)
+    # instead of latest to upgrade only when you choose.
+    image: jonstuebe/wemo-local:latest
     container_name: wemo-local
     restart: unless-stopped
     # Host networking puts the container on your LAN directly, so WeMo
