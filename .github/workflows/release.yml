@@ -1,0 +1,80 @@
+name: release
+
+# Every push to main that contains a feat/fix/perf/breaking commit cuts a new
+# semver release: a `vX.Y.Z` git tag, a GitHub Release, and a multi-arch
+# jonstuebe/wemo-local image tagged X.Y.Z, X.Y and latest. Pull requests only
+# build the image to check it still works.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      release: ${{ steps.next.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: next
+        run: .github/scripts/next-version.sh notes.md | tee -a "$GITHUB_OUTPUT"
+      - run: cat notes.md >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    needs: version
+    # On main, only build when there's something to release (or when run by
+    # hand, which rebuilds the current version).
+    if: github.event_name != 'push' || needs.version.outputs.release == 'true'
+    uses: docker/github-builder/.github/workflows/build.yml@v1.19.0
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      output: image
+      push: ${{ github.event_name != 'pull_request' }}
+      platforms: linux/amd64,linux/arm64
+      cache: true
+      build-args: |
+        VERSION=${{ needs.version.outputs.version }}
+      meta-images: jonstuebe/wemo-local
+      meta-flavor: |
+        latest=false
+      meta-tags: |
+        type=semver,pattern={{version}},value=v${{ needs.version.outputs.version }}
+        type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.version }}
+        type=raw,value=latest
+    secrets:
+      registry-auths: |
+        - registry: docker.io
+          username: jonstuebe
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  release:
+    needs: [version, image]
+    if: github.event_name != 'pull_request' && needs.version.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Tag and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          .github/scripts/next-version.sh notes.md
+          gh release create "v${VERSION}" --target "${GITHUB_SHA}" --title "v${VERSION}" --notes-file notes.md
